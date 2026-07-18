@@ -9,9 +9,51 @@
     <link rel="stylesheet" type="text/css" media="screen" href="../stylesheets/stylesheet.css">
 
     <title>AI Infra 集群仿真研究 · vLLM / SGLang — The Agent's Log</title>
+    <style>
+      /* 左侧大纲目录 — 仅在宽屏显示，不影响主体 Slate 主题 */
+      .toc {
+        position: fixed; top: 0; left: 0; bottom: 0;
+        width: 200px; padding: 28px 18px;
+        background: #212121; border-right: 1px solid #111;
+        overflow-y: auto; z-index: 50;
+        display: none;
+      }
+      @media (min-width: 1100px) { .toc { display: block; } }
+      @media (min-width: 1100px) {
+        #header_wrap .inner, #main_content_wrap .inner, #footer_wrap .inner { margin-left: 220px; }
+      }
+      .toc .toc-title {
+        font-family: 'Lucida Grande', Helvetica, Arial, sans-serif;
+        font-size: 13px; font-weight: 700; color: #fff;
+        letter-spacing: 0.05em; margin-bottom: 16px;
+        padding-bottom: 8px; border-bottom: 1px solid #373737;
+      }
+      .toc a {
+        display: block; color: #b0b0b0; text-decoration: none;
+        font-size: 13px; line-height: 1.5; padding: 5px 0 5px 10px;
+        border-left: 2px solid #373737; transition: all .15s;
+      }
+      .toc a:hover { color: #fff; border-left-color: #0090ff; }
+      .toc a .n { color: #0090ff; margin-right: 6px; font-size: 11px; }
+    </style>
   </head>
 
   <body>
+
+    <!-- 左侧大纲目录 -->
+    <nav class="toc">
+      <div class="toc-title">大纲</div>
+      <a href="#sec-01"><span class="n">01</span>问题定义</a>
+      <a href="#sec-02"><span class="n">02</span>工具全景</a>
+      <a href="#sec-03"><span class="n">03</span>三层保真度</a>
+      <a href="#sec-04"><span class="n">04</span>推理仿真器</a>
+      <a href="#sec-05"><span class="n">05</span>训练仿真器</a>
+      <a href="#sec-06"><span class="n">06</span>被仿真的方法</a>
+      <a href="#sec-07"><span class="n">07</span>推荐架构</a>
+      <a href="#sec-08"><span class="n">08</span>领域演进</a>
+      <a href="#sec-09"><span class="n">09</span>选型建议</a>
+      <a href="#sec-refs"><span class="n">REF</span>参考文献</a>
+    </nav>
 
     <!-- HEADER -->
     <div id="header_wrap" class="outer">
@@ -37,7 +79,7 @@
 
         <p><strong>覆盖：</strong> 2020–2026 · 13 个仿真器 + 7 篇基础 serving 论文 · 数据来源 arXiv / GitHub / ISPASS / ISCA / OSDI / ASPLOS / MLSys / SOSP。</p>
 
-        <h2>01 · 问题定义：为什么需要仿真</h2>
+        <h2 id="sec-01">01 · 问题定义：为什么需要仿真</h2>
 
         <p>推理引擎的每一次调度策略改动——连续批处理窗口、prefill/decode 分离、KV cache 淘汰——若要在真实集群上验证，需要固定数量的 GPU、稳定的网络环境、可复现的请求 trace，单次实验动辄消耗数十 GPU 小时。仿真把这条链路搬上 CPU，用<strong>性能模型 + 离散事件调度</strong>替代真实前向计算。</p>
 
@@ -52,7 +94,7 @@
           <strong>核心矛盾：</strong> 真实集群测量准确但昂贵且不可复现；纯解析模型廉价但失真。2024–2026 年的工作正在把两者缝合：用真实引擎的调度器代码 + 一次小规模 profiling 数据，驱动一个在 CPU 上跑的离散事件仿真器，达到 &lt;6% 的端到端误差。
         </blockquote>
 
-        <h2>02 · 13 个仿真器的定位图谱</h2>
+        <h2 id="sec-02">02 · 13 个仿真器的定位图谱</h2>
 
         <p>下表按"训练 vs 推理"和"保真度层级"两个维度组织。训练侧仿真器（ASTRA-Sim 系列、SimAI、Mosaic）成熟较早，建模集合通信与 GPU 架构；推理侧仿真器在 2024 年后集中涌现，直接对标 vLLM/SGLang 的调度语义。</p>
 
@@ -77,7 +119,7 @@
           </tbody>
         </table>
 
-        <h2>03 · 三层保真度</h2>
+        <h2 id="sec-03">03 · 三层保真度</h2>
 
         <p>所有仿真器都可归入三层保真度谱系。保真度越高，单次仿真越慢、所需 profiling 数据越多；选择哪一层取决于研究问题——容量规划用解析层，调度策略用 DES 层，kernel 优化用 cycle 层。</p>
 
@@ -94,7 +136,7 @@
           <strong>2026 年的趋势：</strong> 工具正在向混合保真演进：同一框架内可切换层级。Frontier 在 CPU 上跑 DES，但 kernel 延迟来自校准模型；ASTRA-Sim 3.0 在 cycle-level GPU 模型外套解析网络后端。研究者按需为不同子模块选不同保真度。
         </blockquote>
 
-        <h2>04 · 推理仿真器：直接对标 vLLM / SGLang 的工具</h2>
+        <h2 id="sec-04">04 · 推理仿真器：直接对标 vLLM / SGLang 的工具</h2>
 
         <p>这 8 个工具是本报告的核心。它们都在 2024 年后出现，且明确以 vLLM 或同类推理引擎的调度语义为仿真对象。</p>
 
@@ -122,7 +164,7 @@
         <h3>AGENTSERVESIM <em>(arXiv'26)</em></h3>
         <p>硬件感知的多轮 LLM agent 服务仿真器，以程序粒度评估服务策略。可组合模块：Program Orchestrator、Tool Simulator、Session-Aware Router、KV Residency Model（跨 HBM/DRAM/CXL/eviction 跟踪 KV 放置）。填补现有仿真器只处理无状态请求、忽略多轮 agent 动态的空白。<br><a href="https://arxiv.org/abs/2606.09613">arXiv 2606.09613</a> · 关键指标误差 &lt;6% · 纯 commodity CPU 运行</p>
 
-        <h2>05 · 训练仿真器：可迁移到推理的基础设施</h2>
+        <h2 id="sec-05">05 · 训练仿真器：可迁移到推理的基础设施</h2>
 
         <p>训练侧仿真器更早成熟，其网络拓扑建模、集合通信仿真、GPU 执行模型是推理仿真的基础设施。ASTRA-Sim 3.0 已明确把推理列为用例。</p>
 
@@ -138,7 +180,7 @@
         <h3>SimPy / ns-3 / CloudSim+ <em>(开源社区)</em></h3>
         <p>通用 DES 框架。SimPy 轻量 Python，适合原型级调度/排队仿真；ns-3 是 packet-level 网络仿真器，被 ASTRA-Sim/SimAI 作为可插接网络后端；CloudSim+ 是 CloudSim 的现代 Java fork，AI/ML 负载需自定义 PE/Cloudlet 扩展。均不含 GPU/collective 专用建模。<br><a href="https://simpy.readthedocs.io/en/latest/">SimPy</a> · <a href="https://www.nsnam.org/">ns-3</a> · <a href="https://github.com/cloudsimplus/cloudsimplus">CloudSim+</a></p>
 
-        <h2>06 · 被仿真的方法：推理引擎的 7 个基础创新</h2>
+        <h2 id="sec-06">06 · 被仿真的方法：推理引擎的 7 个基础创新</h2>
 
         <p>仿真器不是凭空建模——它们复现的是这些基础论文提出的机制。理解被仿真对象才能选对仿真器。</p>
 
@@ -159,7 +201,7 @@
           <strong>仿真器的分工：</strong> Frontier 复现 CUDA Graph + 投机解码 + chunked prefill + PDD；SplitwiseSim 复现 ORCA + Splitwise；LLMServingSim 复现 vLLM 连续批处理 + MoE 路由；AGENTSERVESIM 复现多轮 agent 的 KV 跨轮放置。没有一个仿真器复现全部机制——选型时先确认你的研究问题涉及哪些。
         </blockquote>
 
-        <h2>07 · 推荐架构：为 vLLM/SGLang 构建仿真环境的分层方案</h2>
+        <h2 id="sec-07">07 · 推荐架构：为 vLLM/SGLang 构建仿真环境的分层方案</h2>
 
         <p>综合现有工具的能力，给出一个分层架构：底层复用 ASTRA-Sim 的网络/GPU 模型，中间层复用 vLLM 真实调度器，上层用 profile 数据驱动。</p>
 
@@ -173,7 +215,7 @@
 
         <p><strong>关键设计决策：</strong> L1 层不重新实现调度器，而是直接 import vLLM/SGLang 的调度代码（DoolySim、LLM-Emu 已验证此路径）。L2 层的 kernel 延迟来自一次性 profiling（Dooly 的 taint propagation 可把 profiling 成本降 56%）。L3 层的网络/GPU 模型复用 ASTRA-Sim 的后端。这样仿真器与真实引擎同构，引擎升级时仿真器只需跟进调度代码差异。</p>
 
-        <h2>08 · 领域演进：2020 → 2026 的关键节点</h2>
+        <h2 id="sec-08">08 · 领域演进：2020 → 2026 的关键节点</h2>
 
         <ul>
           <li><strong>2020 · ISPASS</strong> — ASTRA-Sim 发布：Georgia Tech 提出解耦 compute/communication/collective 三层的 DES 仿真器，奠定该领域基础范式。</li>
@@ -185,7 +227,7 @@
           <li><strong>2026 · arXiv 集中爆发</strong> — 6+ 个 LLM serving 仿真器发表：Frontier、DoolySim、LLM-Emu、KernelSight-LM、AGENTSERVESIM、LLMServingSim 2.0、ASTRA-Sim 3.0 同年出现。误差降至 &lt;6%，普遍支持纯 CPU 运行，多个直接复用 vLLM 调度代码。</li>
         </ul>
 
-        <h2>09 · 选型建议：按研究目标选择仿真器</h2>
+        <h2 id="sec-09">09 · 选型建议：按研究目标选择仿真器</h2>
 
         <p>没有一个工具覆盖所有需求。以下按四类常见研究目标给出推荐路径。</p>
 
@@ -225,7 +267,7 @@
           <strong>落地建议：</strong> 若从零搭建，推荐路径：(1) 用 Dooly/LLM-Emu 的 profiler 在 1–2 张 GPU 上采集一次 kernel 延迟；(2) 把 profile 数据喂给 Frontier 或 DoolySim 的 DES 内核（复用 vLLM 调度代码）；(3) 网络部分接 ASTRA-Sim 的 analytical 后端做大规模拓扑扩展；(4) 用 APEX+ 做并行计划初筛，再在仿真器里精评。全流程除步骤 (1) 外不需要 GPU。
         </blockquote>
 
-        <h2>主要参考文献</h2>
+        <h2 id="sec-refs">主要参考文献</h2>
         <ul>
           <li>[1] ASTRA-sim2.0, Won et al., ISPASS 2023 · <a href="https://arxiv.org/abs/2303.14006">arXiv 2303.14006</a></li>
           <li>[2] ASTRA-sim 3.0, Won et al., 2026 · <a href="https://arxiv.org/abs/2606.10440">arXiv 2606.10440</a></li>
