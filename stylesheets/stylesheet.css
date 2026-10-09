@@ -237,6 +237,12 @@ table {
   text-align: left;
  }
 
+/* 宽表格在窄屏可横向滚动，不撑破布局 */
+#main_content table {
+  display: block;
+  overflow-x: auto;
+}
+
 th {
   font-family: 'Lucida Grande', 'Helvetica Neue', Helvetica, Arial, sans-serif;
   padding: 10px;
